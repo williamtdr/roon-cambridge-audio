@@ -1,0 +1,17 @@
+{
+  "name": "roon-cambridge-audio",
+  "version": "1.0.0",
+  "description": "Software to control Cambridge Audio's 840av2 Amplifier via RS232 in Roon.",
+  "main": "app.js",
+  "author": "synapses, Stefan Kruzlik",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "node-hue-api": "^4.0.9",
+    "node-roon-api": "github:roonlabs/node-roon-api",
+    "node-roon-api-settings": "github:roonlabs/node-roon-api-settings",
+    "node-roon-api-source-control": "github:roonlabs/node-roon-api-source-control",
+    "node-roon-api-status": "github:roonlabs/node-roon-api-status",
+    "node-roon-api-volume-control": "github:roonlabs/node-roon-api-volume-control",
+    "serialport": "^9.0.2"
+  }
+}
