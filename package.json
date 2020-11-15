@@ -5,6 +5,9 @@
   "main": "app.js",
   "author": "synapses, Stefan Kruzlik",
   "license": "Apache-2.0",
+  "scripts": {
+    "start": "node app.mjs"
+  },
   "dependencies": {
     "node-hue-api": "^4.0.9",
     "node-roon-api": "github:roonlabs/node-roon-api",

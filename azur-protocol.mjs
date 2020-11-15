@@ -33,6 +33,7 @@ export default class AzurProtocol extends events.EventEmitter {
         this._port.on('data', data => {
             if(this.initializing) {
                 this.initializing = false;
+                this.connected = true;
                 this.emit('connected');
             }
             data = data.trim();
@@ -102,6 +103,7 @@ export default class AzurProtocol extends events.EventEmitter {
         setTimeout(() => {
             if(this.initializing) {
                 this.initializing = false;
+                this.connected = true;
                 this.emit('connected');
             }
         }, this.properties.startuptime * 1000);
@@ -257,6 +259,8 @@ export default class AzurProtocol extends events.EventEmitter {
 
         let closecb = (why) => {
             this.emit('disconnected');
+            this.connected = false;
+
             if(why !== 'close') {
                 let seq = ++this.seq;
                 setTimeout(() => {

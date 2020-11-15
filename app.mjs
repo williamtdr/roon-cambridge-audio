@@ -7,6 +7,7 @@ import RoonApiStatus from 'node-roon-api-status';
 import RoonApiVolumeControl from 'node-roon-api-volume-control';
 import RoonApiSourceControl from 'node-roon-api-source-control';
 import constants from './constants.mjs';
+import DynamicLcd from './dynamic-lcd.mjs';
 
 const roon = new RoonApi({
     extension_id: 'moe.tdr.840av2control',
@@ -23,6 +24,7 @@ let mysettings = roon.load_config("settings") || {
 };
 
 const azur = {};
+let dynamicLcd = false;
 
 function log(msg) {
     console.log(`[Extension] ${msg}`);
@@ -182,6 +184,10 @@ function onConnected(status) {
             if(this.state.status === "standby") {
                 control.powerOn();
                 setTimeout(() => {
+                    // restore brightness value if it changed while amp was off
+                    if(dynamicLcd && dynamicLcd.hasValue)
+                        control.setLCDBrightness(dynamicLcd.brightnessShouldBe);
+
                     req.send_complete("Success");
                 }, mysettings.startuptime * 1000);
             } else {
@@ -236,3 +242,21 @@ function onSourceChanged(val) {
 
 setup();
 roon.start_discovery();
+
+if(constants.enableHueIntegration) {
+    dynamicLcd = new DynamicLcd();
+
+    dynamicLcd.init().then(() => {
+       // do nothing
+    });
+
+    dynamicLcd.on('brightnessShouldBe', newBrightness => {
+        if(azur.control && azur.control.connected && azur.control.properties.source !== "standby") {
+            azur.control.setLCDBrightness(newBrightness);
+
+            log(`setting LCD brightness ot ${newBrightness} based on Hue state change...`);
+        } else {
+            log(`ignoring new LCD brightness value (${newBrightness}) since amplifier is not connected.`);
+        }
+    });
+}

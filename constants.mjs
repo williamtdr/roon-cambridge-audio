@@ -4,5 +4,8 @@ export default {
     maxSafeVolume: (96 - 20), // -20dB
     defaultVolume: -45,
     defaultSource: "1",
-    deviceName: "840a v2"
+    deviceName: "840a v2",
+    enableHueIntegration: true,
+    friendlyNameSpeakerA: "Speaker A",
+    friendlyNameSpeakerB: "Speaker B",
 };
