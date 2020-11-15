@@ -113,6 +113,7 @@ function setup() {
     azur.control.on('disconnected', onDisconnected);
     azur.control.on('volume', onVolumeChanged);
     azur.control.on('source', onSourceChanged);
+    azur.control.on('speakers', onSpeakersChanged);
 
     if(azur.source_control) {
         for(let source of azur.source_control)
@@ -171,101 +172,107 @@ function onConnected(status) {
         }
     });
 
-    azur.source_control = [
-        svc_source_control.new_device({
-            state: {
-                display_name: constants.friendlyNameSpeakerA,
-                supports_standby: true,
-                status: this.properties.speakers === "a" ? "selected" : "standby",
-                control_key: "a"
-            },
-            convenience_switch: (req) => {
-                if(control.properties.source === "standby") {
-                    control.powerOn();
-                    setTimeout(() => {
-                        // restore brightness value if it changed while amp was off
-                        if(dynamicLcd && dynamicLcd.hasValue) {
-                            const brightnessShouldBe = dynamicLcd.brightnessShouldBe;
+    azur.source_control = [ 0, 0, 0 ];
 
-                            log(`restoring dynamic LCD brightness: ${brightnessShouldBe}`);
+    azur.source_control[constants.SPEAKER_A] = svc_source_control.new_device({
+        state: {
+            display_name: constants.friendlyNameSpeakerA,
+            supports_standby: true,
+            status: control.properties.speakers === constants.SPEAKER_A ? "selected" : "standby",
+            control_key: "a"
+        },
+        convenience_switch: (req) => {
+            if(control.properties.source === "standby") {
+                control.powerOn();
+                setTimeout(() => {
+                    // restore brightness value if it changed while amp was off
+                    if(dynamicLcd && dynamicLcd.hasValue) {
+                        const brightnessShouldBe = dynamicLcd.brightnessShouldBe;
 
-                            control.setLCDBrightness(brightnessShouldBe);
-                        }
+                        log(`restoring dynamic LCD brightness: ${brightnessShouldBe}`);
 
-                        req.send_complete("Success");
-                    }, mysettings.startuptime * 1000);
-                } else {
+                        control.setLCDBrightness(brightnessShouldBe);
+                    }
+
                     req.send_complete("Success");
-                }
-            },
-            standby: (req) => {
-                control.powerOff();
+                }, mysettings.startuptime * 1000);
+            } else {
                 req.send_complete("Success");
             }
-        }),
-        svc_source_control.new_device({
-            state: {
-                display_name: constants.friendlyNameSpeakerB,
-                supports_standby: true,
-                status: this.properties.speakers === "b" ? "selected" : "standby",
-                control_key: "b"
-            },
-            convenience_switch: (req) => {
-                if(control.properties.source === "standby") {
-                    control.powerOn();
-                    setTimeout(() => {
-                        // restore brightness value if it changed while amp was off
-                        if(dynamicLcd && dynamicLcd.hasValue) {
-                            const brightnessShouldBe = dynamicLcd.brightnessShouldBe;
+        },
+        standby: (req) => {
+            control.powerOff();
+            req.send_complete("Success");
+        }
+    });
+    azur.source_control[constants.SPEAKER_B] = svc_source_control.new_device({
+        state: {
+            display_name: constants.friendlyNameSpeakerB,
+            supports_standby: true,
+            status: control.properties.speakers === constants.SPEAKER_B ? "selected" : "standby",
+            control_key: "b"
+        },
+        convenience_switch: (req) => {
+            if(control.properties.source === "standby") {
+                control.powerOn();
+                setTimeout(() => {
+                    // restore brightness value if it changed while amp was off
+                    if(dynamicLcd && dynamicLcd.hasValue) {
+                        const brightnessShouldBe = dynamicLcd.brightnessShouldBe;
 
-                            log(`restoring dynamic LCD brightness: ${brightnessShouldBe}`);
+                        log(`restoring dynamic LCD brightness: ${brightnessShouldBe}`);
 
-                            control.setLCDBrightness(brightnessShouldBe);
-                        }
+                        control.setLCDBrightness(brightnessShouldBe);
+                    }
 
-                        req.send_complete("Success");
-                    }, mysettings.startuptime * 1000);
-                } else {
                     req.send_complete("Success");
-                }
-            },
-            standby: (req) => {
-                control.powerOff();
+                }, mysettings.startuptime * 1000);
+            } else {
                 req.send_complete("Success");
             }
-        }),
-        svc_source_control.new_device({
-            state: {
-                display_name: constants.friendlyNameSpeakerAB,
-                supports_standby: true,
-                status: this.properties.speakers === "ab" ? "selected" : "standby",
-                control_key: "ab"
-            },
-            convenience_switch: (req) => {
-                if(control.properties.source === "standby") {
-                    control.powerOn();
-                    setTimeout(() => {
-                        // restore brightness value if it changed while amp was off
-                        if(dynamicLcd && dynamicLcd.hasValue) {
-                            const brightnessShouldBe = dynamicLcd.brightnessShouldBe;
+        },
+        standby: (req) => {
+            control.powerOff();
+            req.send_complete("Success");
+        }
+    });
+    azur.source_control[constants.SPEAKER_AB] = svc_source_control.new_device({
+        state: {
+            display_name: constants.friendlyNameSpeakerAB,
+            supports_standby: true,
+            status: control.properties.speakers === constants.SPEAKER_AB ? "selected" : "standby",
+            control_key: "ab"
+        },
+        convenience_switch: (req) => {
+            if(control.properties.source === "standby") {
+                control.powerOn();
+                setTimeout(() => {
+                    // restore brightness value if it changed while amp was off
+                    if(dynamicLcd && dynamicLcd.hasValue) {
+                        const brightnessShouldBe = dynamicLcd.brightnessShouldBe;
 
-                            log(`restoring dynamic LCD brightness: ${brightnessShouldBe}`);
+                        log(`restoring dynamic LCD brightness: ${brightnessShouldBe}`);
 
-                            control.setLCDBrightness(brightnessShouldBe);
-                        }
+                        control.setLCDBrightness(brightnessShouldBe);
+                    }
 
-                        req.send_complete("Success");
-                    }, mysettings.startuptime * 1000);
-                } else {
                     req.send_complete("Success");
-                }
-            },
-            standby: (req) => {
-                control.powerOff();
+                }, mysettings.startuptime * 1000);
+            } else {
                 req.send_complete("Success");
             }
-        })
-    ];
+        },
+        standby: (req) => {
+            control.powerOff();
+            req.send_complete("Success");
+        }
+    });
+}
+
+function onSpeakersChanged() {
+    const speakers = azur.control.properties.speakers;
+
+
 }
 
 function onDisconnected(status) {

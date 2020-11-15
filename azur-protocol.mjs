@@ -19,7 +19,13 @@ export default class AzurProtocol extends events.EventEmitter {
     init(opts, closecb) {
         this._qw = [];
         this._woutstanding = false;
-        this.properties = { startuptime: opts.startuptime || 4, volume: false, speakers: "a", lcdBrightness: 0, source: "standby" };
+        this.properties = {
+            startuptime: opts.startuptime || 4,
+            volume: false,
+            speakers: constants.SPEAKER_A,
+            lcdBrightness: 0,
+            source: "standby"
+        };
         this.initializing = true;
 
         this._port = new SerialPort(opts.port, {
@@ -100,16 +106,9 @@ export default class AzurProtocol extends events.EventEmitter {
                         case 21:
                             const speakers = parseInt(commandBody[1]);
 
-                            switch(speakers) {
-                                case 0:
-                                    this.properties.speakers = "a";
-                                break;
-                                case 1:
-                                    this.properties.speakers = "ab";
-                                break;
-                                case 2:
-                                    this.properties.speakers = "b";
-                            }
+                            this.properties.speakers = speakers;
+
+                            this.emit('speakers', this.properties.speakers);
                         break;
                         default:
                             this.log(`unhandled reply from control command: ${subcommand}`);

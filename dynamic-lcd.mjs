@@ -6,6 +6,7 @@
 import nodeHue from 'node-hue-api';
 import fs from 'fs';
 import events from 'events';
+import constants from './constants.mjs';
 
 const v3 = nodeHue.v3;
 const discovery = v3.discovery;
@@ -126,11 +127,11 @@ export default class DynamicLcd extends events.EventEmitter {
                 this.hasValue = true;
 
                 if(avgBrightness < THRESHOLD_OFF) {
-                    this.brightnessShouldBe = 0;
+                    this.brightnessShouldBe = constants.LCD_OFF;
                 } else if(avgBrightness < THRESHOLD_DIM) {
-                    this.brightnessShouldBe = 1;
+                    this.brightnessShouldBe = constants.LCD_DIM;
                 } else {
-                    this.brightnessShouldBe = 2;
+                    this.brightnessShouldBe = constants.LCD_BRIGHT;
                 }
 
                 if(isFirstResponse || lastBrightnessWas !== this.brightnessShouldBe) {
