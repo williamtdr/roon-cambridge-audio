@@ -173,21 +173,7 @@ export default class AzurProtocol extends events.EventEmitter {
     }
 
     setSpeaker(val) {
-        // "A", "B", "AB"
-        let id = 0;
-        switch(val) {
-            case "A":
-                id = 0;
-            break;
-            case "AB":
-                id = 1;
-            break;
-            case "B":
-                id = 2;
-            break;
-        }
-
-        this.send(`#1,21,${id}\r`);
+        this.send(`#1,21,${val}\r`);
     }
 
     setLCDBrightness(val) {

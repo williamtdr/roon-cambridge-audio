@@ -17,12 +17,10 @@ const roon = new RoonApi({
     email: 'do-not-reply@noemail.com',
     website: 'https://github.com/williamtdr/roon-cambridge-audio'
 });
-
 let mysettings = roon.load_config("settings") || {
     serialport: "",
     startuptime: 4
 };
-
 const azur = {};
 let dynamicLcd = false;
 
@@ -76,20 +74,20 @@ const svc_settings = new RoonApiSettings(roon, {
     get_settings: (cb) => {
         cb(makelayout(mysettings));
     },
-    save_settings: (req, isdryrun, settings) => {
-        let l = makelayout(settings.values);
+    save_settings: (req, isDryRun, settings) => {
+        const l = makelayout(settings.values);
         req.send_complete(l.has_error ? "NotValid" : "Success", { settings: l });
 
-        if(!isdryrun && !l.has_error) {
-            const oldmode = mysettings.mode;
-            const oldip = mysettings.ip;
-            const oldport = mysettings.serialport;
+        if(!isDryRun && !l.has_error) {
+            const oldStartupTime = mysettings.startuptime;
+            const oldSerialPort = mysettings.serialport;
+
             mysettings = l.values;
             svc_settings.update_settings(l);
-            let force = false;
-            if(oldmode !== mysettings.mode) force = true;
-            if(oldport !== mysettings.serialport) force = true;
-            if(force) setup();
+
+            if(oldStartupTime !== mysettings.startuptime || oldSerialPort !== mysettings.serialport)
+                setup();
+
             roon.save_config("settings", mysettings);
         }
     }
@@ -101,20 +99,9 @@ const svc_source_control = new RoonApiSourceControl(roon);
 
 roon.init_services({
     provided_services: [svc_volume_control, svc_source_control, svc_settings, svc_status]
-});
+})
 
-function setup() {
-    if(azur.control)
-        azur.control.stop();
-
-    azur.control = new AzurProtocol();
-
-    azur.control.on('connected', onConnected);
-    azur.control.on('disconnected', onDisconnected);
-    azur.control.on('volume', onVolumeChanged);
-    azur.control.on('source', onSourceChanged);
-    azur.control.on('speakers', onSpeakersChanged);
-
+function destroy() {
     if(azur.source_control) {
         for(let source of azur.source_control)
             source.destroy();
@@ -125,6 +112,21 @@ function setup() {
         azur.volume_control.destroy();
         delete (azur.volume_control);
     }
+}
+
+function setup() {
+    if(azur.control)
+        azur.control.stop();
+
+    destroy();
+
+    azur.control = new AzurProtocol();
+
+    azur.control.on('connected', onConnected);
+    azur.control.on('disconnected', onDisconnected);
+    azur.control.on('volume', onVolumeChanged);
+    azur.control.on('source', onSourceChanged);
+    azur.control.on('speakers', onSpeakersChanged);
 
     const opts = { startuptime: mysettings.startuptime };
 
@@ -135,9 +137,37 @@ function setup() {
 
     opts.port = mysettings.serialport;
 
-    log(`starting with options: ${opts}`);
+    log(`starting with options: ${JSON.stringify(opts)}`);
     azur.control.start(opts);
 }
+
+function makeConvenienceSwitcher(speaker) {
+    return (req) => {
+        if(azur.control.properties.source === "standby") {
+            azur.control.powerOn();
+            setTimeout(() => {
+                // restore brightness value if it changed while amp was off
+                if(dynamicLcd && dynamicLcd.hasValue) {
+                    const brightnessShouldBe = dynamicLcd.brightnessShouldBe;
+
+                    log(`restoring dynamic LCD brightness: ${brightnessShouldBe}`);
+
+                    azur.control.setLCDBrightness(brightnessShouldBe);
+                }
+
+                req.send_complete("Success");
+            }, mysettings.startuptime * 1000);
+        } else {
+            azur.control.setSpeaker(speaker);
+            req.send_complete("Success");
+        }
+    }
+}
+
+const onStandby = (req) => {
+    azur.control.powerOff();
+    req.send_complete("Success");
+};
 
 function onConnected(status) {
     let control = azur.control;
@@ -181,29 +211,8 @@ function onConnected(status) {
             status: control.properties.speakers === constants.SPEAKER_A ? "selected" : "standby",
             control_key: "a"
         },
-        convenience_switch: (req) => {
-            if(control.properties.source === "standby") {
-                control.powerOn();
-                setTimeout(() => {
-                    // restore brightness value if it changed while amp was off
-                    if(dynamicLcd && dynamicLcd.hasValue) {
-                        const brightnessShouldBe = dynamicLcd.brightnessShouldBe;
-
-                        log(`restoring dynamic LCD brightness: ${brightnessShouldBe}`);
-
-                        control.setLCDBrightness(brightnessShouldBe);
-                    }
-
-                    req.send_complete("Success");
-                }, mysettings.startuptime * 1000);
-            } else {
-                req.send_complete("Success");
-            }
-        },
-        standby: (req) => {
-            control.powerOff();
-            req.send_complete("Success");
-        }
+        convenience_switch: makeConvenienceSwitcher(constants.SPEAKER_A),
+        standby: onStandby
     });
     azur.source_control[constants.SPEAKER_B] = svc_source_control.new_device({
         state: {
@@ -212,29 +221,8 @@ function onConnected(status) {
             status: control.properties.speakers === constants.SPEAKER_B ? "selected" : "standby",
             control_key: "b"
         },
-        convenience_switch: (req) => {
-            if(control.properties.source === "standby") {
-                control.powerOn();
-                setTimeout(() => {
-                    // restore brightness value if it changed while amp was off
-                    if(dynamicLcd && dynamicLcd.hasValue) {
-                        const brightnessShouldBe = dynamicLcd.brightnessShouldBe;
-
-                        log(`restoring dynamic LCD brightness: ${brightnessShouldBe}`);
-
-                        control.setLCDBrightness(brightnessShouldBe);
-                    }
-
-                    req.send_complete("Success");
-                }, mysettings.startuptime * 1000);
-            } else {
-                req.send_complete("Success");
-            }
-        },
-        standby: (req) => {
-            control.powerOff();
-            req.send_complete("Success");
-        }
+        convenience_switch: makeConvenienceSwitcher(constants.SPEAKER_B),
+        standby: onStandby
     });
     azur.source_control[constants.SPEAKER_AB] = svc_source_control.new_device({
         state: {
@@ -243,36 +231,22 @@ function onConnected(status) {
             status: control.properties.speakers === constants.SPEAKER_AB ? "selected" : "standby",
             control_key: "ab"
         },
-        convenience_switch: (req) => {
-            if(control.properties.source === "standby") {
-                control.powerOn();
-                setTimeout(() => {
-                    // restore brightness value if it changed while amp was off
-                    if(dynamicLcd && dynamicLcd.hasValue) {
-                        const brightnessShouldBe = dynamicLcd.brightnessShouldBe;
-
-                        log(`restoring dynamic LCD brightness: ${brightnessShouldBe}`);
-
-                        control.setLCDBrightness(brightnessShouldBe);
-                    }
-
-                    req.send_complete("Success");
-                }, mysettings.startuptime * 1000);
-            } else {
-                req.send_complete("Success");
-            }
-        },
-        standby: (req) => {
-            control.powerOff();
-            req.send_complete("Success");
-        }
+        convenience_switch: makeConvenienceSwitcher(constants.SPEAKER_AB),
+        standby: onStandby
     });
 }
 
 function onSpeakersChanged() {
     const speakers = azur.control.properties.speakers;
 
+    for(let source of azur.source_control)
+        source.state.status = "standby";
 
+    azur.source_control[speakers].state.status = "selected";
+
+    // send new values back to roon
+    for(let source of azur.source_control)
+        source.update_state();
 }
 
 function onDisconnected(status) {
@@ -280,14 +254,7 @@ function onDisconnected(status) {
 
     svc_status.set_status(`Could not connect to ${constants.deviceName} on "${mysettings.serialport}"`, true);
 
-    if(azur.source_control) {
-        azur.source_control.destroy();
-        delete (azur.source_control);
-    }
-    if(azur.volume_control) {
-        azur.volume_control.destroy();
-        delete (azur.volume_control);
-    }
+    destroy();
 }
 
 function onVolumeChanged(val) {
@@ -300,30 +267,25 @@ function onVolumeChanged(val) {
 function onSourceChanged(val) {
     log(`received source change from device: ${val}`);
 
-    if(val === "muted" && azur.volume_control)
+    if(!azur.volume_control || !azur.source_control)
+        return;
+
+    if(val === "muted" && !azur.volume_control.state.is_muted)
         azur.volume_control.update_state({ is_muted: true });
-    else if(val === "unmuted" && azur.volume_control)
+    else if(azur.volume_control.state.is_muted)
         azur.volume_control.update_state({ is_muted: false });
-    else if(val === "standby" && azur.source_control) {
+
+    if(val === "standby") {
         for(let source of azur.source_control) {
             source.update_state({ status: "standby" });
         }
     } else {
-        if(azur.volume_control)
-            azur.volume_control.update_state({ is_muted: false });
-
-        for(let source of azur.source_control) {
-            source.update_state({ status: "selected" });
-        }
+        onSpeakersChanged();
     }
 }
 
 setup();
 roon.start_discovery();
-
-setTimeout(() => {
-    azur.control.init({ port: "COM1" }, () => {});
-}, 3000);
 
 if(constants.enableHueIntegration) {
     dynamicLcd = new DynamicLcd();
