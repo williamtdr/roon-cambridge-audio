@@ -53,7 +53,7 @@ export default class DynamicLcd extends events.EventEmitter {
         const ipAddress = await this.discoverBridge();
 
         if(fs.existsSync(configFilename)) {
-            console.log("Retrieving saved credentials from file.");
+            this.log("Retrieving saved credentials from file.");
 
             const contents = JSON.parse(fs.readFileSync(configFilename).toString());
 

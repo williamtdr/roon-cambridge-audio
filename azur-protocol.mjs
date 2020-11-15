@@ -9,14 +9,11 @@ export default class AzurProtocol extends events.EventEmitter {
         super();
 
         this.seq = 0;
+        this.connected = false;
     }
 
     log(msg) {
         console.log(`[AzurProtocol] ${msg}`);
-    }
-
-    getAbsoluteVolume(lvl) {
-        return constants.useRelativeVolume ? -lvl : constants.maxVolume - lvl;
     }
 
     init(opts, closecb) {
@@ -190,9 +187,6 @@ export default class AzurProtocol extends events.EventEmitter {
     };
 
     volumeUp() {
-        if(this.properties.volume) {
-
-        }
         this.send("#1,14,\r");
     }
 

@@ -156,11 +156,6 @@ function onConnected(status) {
         set_volume: (req, mode, value) => {
             let newVol = mode === "absolute" ? value : (control.properties.volume + value);
 
-            if(newVol < this.state.volume_min)
-                newVol = this.state.volume_min;
-            else if(newVol > this.state.volume_max)
-                newVol = this.state.volume_max;
-
             control.setVolume(newVol);
             req.send_complete("Success");
         },
@@ -181,12 +176,17 @@ function onConnected(status) {
             status: control.properties.source === "standby" ? "standby" : "selected"
         },
         convenience_switch: (req) => {
-            if(this.state.status === "standby") {
+            if(control.properties.source === "standby") {
                 control.powerOn();
                 setTimeout(() => {
                     // restore brightness value if it changed while amp was off
-                    if(dynamicLcd && dynamicLcd.hasValue)
-                        control.setLCDBrightness(dynamicLcd.brightnessShouldBe);
+                    if(dynamicLcd && dynamicLcd.hasValue) {
+                        const brightnessShouldBe = dynamicLcd.brightnessShouldBe;
+
+                        log(`restoring dynamic LCD brightness: ${brightnessShouldBe}`);
+
+                        control.setLCDBrightness(brightnessShouldBe);
+                    }
 
                     req.send_complete("Success");
                 }, mysettings.startuptime * 1000);
@@ -195,7 +195,6 @@ function onConnected(status) {
             }
         },
         standby: (req) => {
-            this.state.status = "standby";
             control.powerOff();
             req.send_complete("Success");
         }
