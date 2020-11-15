@@ -19,7 +19,7 @@ export default class AzurProtocol extends events.EventEmitter {
     init(opts, closecb) {
         this._qw = [];
         this._woutstanding = false;
-        this.properties = { startuptime: opts.startuptime || 4, volume: false };
+        this.properties = { startuptime: opts.startuptime || 4, volume: false, speakers: "a", lcdBrightness: 0, source: "standby" };
         this.initializing = true;
 
         this._port = new SerialPort(opts.port, {
@@ -72,7 +72,7 @@ export default class AzurProtocol extends events.EventEmitter {
                             // mute state changed
                             const muteState = parseInt(commandBody[1]);
 
-                            this.setSource(muteState === 1 ? "muted" : "unmuted");
+                            this.setSource(muteState === 1 ? "muted" : constants.defaultSource);
                         break;
                         case 13:
                             // volume level, 0-96
@@ -80,8 +80,35 @@ export default class AzurProtocol extends events.EventEmitter {
 
                             if(this.properties.volume !== volume) {
                                 this.log(`Changing volume from ${this.properties.volume} to ${volume}`);
-                                this.properties.volume = volume;
-                                this.emit('volume', volume);
+
+                                if(constants.useRelativeVolume) {
+                                    this.properties.volume = -(constants.maxVolume - volume);
+                                    this.emit('volume', -(constants.maxVolume - volume));
+                                } else {
+                                    this.properties.volume = volume;
+                                    this.emit('volume', volume);
+                                }
+                            }
+                        break;
+                        case 20:
+                            // this is the first command the amp sends when it turns on,
+                            // for some reason
+                            const lcdBrightness = parseInt(commandBody[1]);
+
+                            this.properties.lcdBrightness = lcdBrightness;
+                        break;
+                        case 21:
+                            const speakers = parseInt(commandBody[1]);
+
+                            switch(speakers) {
+                                case 0:
+                                    this.properties.speakers = "a";
+                                break;
+                                case 1:
+                                    this.properties.speakers = "ab";
+                                break;
+                                case 2:
+                                    this.properties.speakers = "b";
                             }
                         break;
                         default:
@@ -108,8 +135,6 @@ export default class AzurProtocol extends events.EventEmitter {
         this._port.on('open', err => {
             this.emit('preconnected');
             this.properties.source = "standby";
-
-            // TODO: maybe get volume when device comes up by toggling up/down?
         });
 
         this._port.on('close', () => {
@@ -172,6 +197,8 @@ export default class AzurProtocol extends events.EventEmitter {
     }
 
     setSource(val) {
+        this.log(`source: ${val}`);
+
         if(this.properties.source !== val) {
             this.properties.source = val;
             this.emit('source', val);

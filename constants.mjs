@@ -6,6 +6,7 @@ export default {
     defaultSource: "1",
     deviceName: "840a v2",
     enableHueIntegration: true,
-    friendlyNameSpeakerA: "Speaker A",
-    friendlyNameSpeakerB: "Speaker B",
+    friendlyNameSpeakerA: "downstairs",
+    friendlyNameSpeakerB: "syn-bedroom",
+    friendlyNameSpeakerAB: "all outputs",
 };
