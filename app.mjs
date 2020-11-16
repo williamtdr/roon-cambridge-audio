@@ -139,14 +139,34 @@ function setup() {
     azur.control.start(opts);
 }
 
+let convenienceSwitchTimings = [0, 0, 0];
+
 function makeConvenienceSwitcher(speaker) {
     return (req) => {
-        if(azur.control.properties.source === "standby") {
-            azur.control.powerOn();
-        } else {
-            azur.control.setSpeaker(speaker);
-            req.send_complete("Success");
-        }
+        // roon (annoyingly) fires this every time you start playback.
+        // we want to filter those out, and only change speakers if
+        // we clicked in the source control menu. just debouncing.
+        req.send_complete("Success");
+
+        convenienceSwitchTimings.push(Date.now());
+
+        setTimeout(() => {
+            const last3Timings = convenienceSwitchTimings.slice(Math.max(convenienceSwitchTimings.length - 3, 1));
+            const baseline = Math.min(last3Timings[0], last3Timings[1]);
+            const delta = Math.max(last3Timings[1], last3Timings[2]) - baseline;
+
+            if(delta < 100) {
+                log("not doing anything, since roon is probably sending these before playback.");
+            } else {
+                log("looks like a user action, switching sources...");
+
+                if(azur.control.properties.source === "standby") {
+                    azur.control.powerOn();
+                } else {
+                    azur.control.setSpeaker(speaker);
+                }
+            }
+        }, 100);
     }
 }
 
@@ -167,7 +187,7 @@ function onConnected(status) {
     azur.volume_control = svc_volume_control.new_device({
         state: {
             display_name: constants.deviceName,
-            volume_type: "number",
+            volume_type: "db",
             volume_min: constants.useRelativeVolume ? -constants.maxVolume : 0,
             volume_max: constants.useRelativeVolume ? 0 : constants.maxVolume,
             volume_value: control.properties.volume !== false ? control.properties.volume : constants.defaultVolume,
