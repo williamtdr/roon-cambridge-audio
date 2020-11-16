@@ -160,6 +160,8 @@ function onConnected(status) {
 
     log("connected!");
 
+    // hack to read volume on startup
+    control.volumeDown();
     svc_status.set_status(`connected to ${constants.deviceName}`, false);
 
     azur.volume_control = svc_volume_control.new_device({
@@ -174,13 +176,6 @@ function onConnected(status) {
         },
         set_volume: (req, mode, value) => {
             let newVol = mode === "absolute" ? value : (control.properties.volume + value);
-
-            console.log(mode);
-            console.log(value);
-            console.log("old volume");
-            console.log(control.properties.volume);
-            console.log("newVol");
-            console.log(newVol);
 
             control.setVolume(newVol);
             req.send_complete("Success");

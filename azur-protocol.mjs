@@ -11,6 +11,7 @@ export default class AzurProtocol extends events.EventEmitter {
         this.seq = 0;
         this.connected = false;
         this.startupEpoch = 0;
+        this.isDiscoveringVolume = true;
     }
 
     log(msg) {
@@ -23,7 +24,7 @@ export default class AzurProtocol extends events.EventEmitter {
         this.properties = {
             startuptime: opts.startuptime || 4,
             volume: false,
-            speakers: constants.SPEAKER_A,
+            speakers: -1,
             source: "standby"
         };
         this.initializing = true;
@@ -80,11 +81,14 @@ export default class AzurProtocol extends events.EventEmitter {
                         case 7:
                             // input N selected
 
+                            this.log(`recv source: ${subcommand}`);
                             this.setSource(subcommand.toString());
                         break;
                         case 11:
                             // power state changed: 0 = standby, 1 = on
                             const powerState = parseInt(commandBody[1]);
+
+                            this.log(`set power state: ${powerState}`);
 
                             if(powerState === 1) {
                                 this.log(`done, ready! (${Date.now() - this.startupEpoch}ms)`);
@@ -97,17 +101,38 @@ export default class AzurProtocol extends events.EventEmitter {
                             const muteState = parseInt(commandBody[1]);
 
                             this.setSource(muteState === 1 ? "muted" : constants.defaultSource);
+                            this.log(`mute state: ${muteState}`);
                         break;
                         case 13:
                             // volume level, 0-96
                             const volume = parseInt(commandBody[1]);
 
+                            // hack to read volume on startup
+                            if(this.isDiscoveringVolume) {
+                                this.stopVolumeChanging();
+                                this.isDiscoveringVolume = false;
+
+                                // restore volume to what it was:
+                                setTimeout(() => {
+                                    this.setVolume(this.properties.volume + 1);
+                                }, 100);
+
+                                // initialize default state:
+                                this.setSource(constants.defaultSource);
+                                setTimeout(() => {
+                                    this.setSpeaker(constants.SPEAKER_B); // (bedroom)
+                                }, 200);
+                            }
+
                             if(this.properties.volume !== volume) {
-                                this.log(`Changing volume from ${this.properties.volume} to ${volume}`);
+                                this.log(`recv volume from amp, from ${this.properties.volume} to ${volume}`);
 
                                 if(constants.useRelativeVolume) {
-                                    this.properties.volume = -(constants.maxVolume - volume);
-                                    this.emit('volume', -(constants.maxVolume - volume));
+                                    const relative = -(constants.maxVolume - volume);
+
+                                    this.log(`relative, so ${relative}db`);
+                                    this.properties.volume = relative;
+                                    this.emit('volume', relative);
                                 } else {
                                     this.properties.volume = volume;
                                     this.emit('volume', volume);
@@ -129,6 +154,7 @@ export default class AzurProtocol extends events.EventEmitter {
                             this.properties.speakers = speakers;
 
                             this.emit('speakers', this.properties.speakers);
+                            this.log(`new speaker group: ${speakers}`);
                         break;
                         default:
                             this.log(`unhandled reply from control command: ${subcommand}`);
@@ -227,8 +253,16 @@ export default class AzurProtocol extends events.EventEmitter {
         this.send("#1,15,\r");
     }
 
+    stopVolumeChanging() {
+        // stop the count!!
+        this.send("#1,16,\r");
+    }
+
     setVolume(val) {
         if(this.properties.volume === val) return;
+
+        if(constants.useRelativeVolume)
+            val += 96;
 
         if(val > constants.maxSafeVolume)
             val = constants.maxSafeVolume;
@@ -236,8 +270,7 @@ export default class AzurProtocol extends events.EventEmitter {
         if(val < 0)
             val = 0;
 
-        if(constants.useRelativeVolume)
-            val += 96;
+        this.log(`setting volume to: ${val}`);
 
         if(this.volumetimer) clearTimeout(this.volumetimer);
         this.volumetimer = setTimeout(() => {
