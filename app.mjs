@@ -7,7 +7,6 @@ import RoonApiStatus from 'node-roon-api-status';
 import RoonApiVolumeControl from 'node-roon-api-volume-control';
 import RoonApiSourceControl from 'node-roon-api-source-control';
 import constants from './constants.mjs';
-import DynamicLcd from './dynamic-lcd.mjs';
 
 const roon = new RoonApi({
     extension_id: 'moe.tdr.840av2control',
@@ -22,7 +21,6 @@ let mysettings = roon.load_config("settings") || {
     startuptime: 4
 };
 const azur = {};
-let dynamicLcd = false;
 
 function log(msg) {
     console.log(`[Extension] ${msg}`);
@@ -145,18 +143,6 @@ function makeConvenienceSwitcher(speaker) {
     return (req) => {
         if(azur.control.properties.source === "standby") {
             azur.control.powerOn();
-            setTimeout(() => {
-                // restore brightness value if it changed while amp was off
-                if(dynamicLcd && dynamicLcd.hasValue) {
-                    const brightnessShouldBe = dynamicLcd.brightnessShouldBe;
-
-                    log(`restoring dynamic LCD brightness: ${brightnessShouldBe}`);
-
-                    azur.control.setLCDBrightness(brightnessShouldBe);
-                }
-
-                req.send_complete("Success");
-            }, mysettings.startuptime * 1000);
         } else {
             azur.control.setSpeaker(speaker);
             req.send_complete("Success");
@@ -188,6 +174,13 @@ function onConnected(status) {
         },
         set_volume: (req, mode, value) => {
             let newVol = mode === "absolute" ? value : (control.properties.volume + value);
+
+            console.log(mode);
+            console.log(value);
+            console.log("old volume");
+            console.log(control.properties.volume);
+            console.log("newVol");
+            console.log(newVol);
 
             control.setVolume(newVol);
             req.send_complete("Success");
@@ -237,16 +230,15 @@ function onConnected(status) {
 }
 
 function onSpeakersChanged() {
-    const speakers = azur.control.properties.speakers;
+    const newSpeakers = azur.control.properties.speakers;
 
-    for(let source of azur.source_control)
-        source.state.status = "standby";
+    for(let speakerId in azur.source_control) {
+        const source = azur.source_control[speakerId];
 
-    azur.source_control[speakers].state.status = "selected";
-
-    // send new values back to roon
-    for(let source of azur.source_control)
-        source.update_state();
+        source.update_state({
+            status: parseInt(speakerId) === newSpeakers ? "selected" : "standby"
+        });
+    }
 }
 
 function onDisconnected(status) {
@@ -270,10 +262,7 @@ function onSourceChanged(val) {
     if(!azur.volume_control || !azur.source_control)
         return;
 
-    if(val === "muted" && !azur.volume_control.state.is_muted)
-        azur.volume_control.update_state({ is_muted: true });
-    else if(azur.volume_control.state.is_muted)
-        azur.volume_control.update_state({ is_muted: false });
+    azur.volume_control.update_state({ is_muted: (val === "muted") });
 
     if(val === "standby") {
         for(let source of azur.source_control) {
@@ -286,21 +275,3 @@ function onSourceChanged(val) {
 
 setup();
 roon.start_discovery();
-
-if(constants.enableHueIntegration) {
-    dynamicLcd = new DynamicLcd();
-
-    dynamicLcd.init().then(() => {
-       // do nothing
-    });
-
-    dynamicLcd.on('brightnessShouldBe', newBrightness => {
-        if(azur.control && azur.control.connected && azur.control.properties.source !== "standby") {
-            azur.control.setLCDBrightness(newBrightness);
-
-            log(`setting LCD brightness ot ${newBrightness} based on Hue state change...`);
-        } else {
-            log(`ignoring new LCD brightness value (${newBrightness}) since amplifier is not connected.`);
-        }
-    });
-}

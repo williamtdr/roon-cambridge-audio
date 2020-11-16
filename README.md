@@ -2,6 +2,4 @@
 
 Connects to a Cambridge Audio 840A v1/v2 or 840E amplifier via RS232 and provides volume/standby control. Tested on an 840Av2
 
-Based on work from [arfoll/rs232server](https://github.com/arfoll/rs232server/blob/master/rs232modules/AzurService.py) (for reference control protocol implementation, granted for 640A), [stefan747/node-mcintosh](https://github.com/stefan747/node-mcintosh) (node rs232 / serial impl), and [stefan747/roon-extension-mcintosh](https://github.com/stefan747/roon-extension-mcintosh) (roon integration).
-
-Optional integration with Hue lights to dynamically set amplifier backlight brightness.
+Based on work from [stefan747/node-mcintosh](https://github.com/stefan747/node-mcintosh) (node rs232 / serial impl) and [stefan747/roon-extension-mcintosh](https://github.com/stefan747/roon-extension-mcintosh) (roon integration).

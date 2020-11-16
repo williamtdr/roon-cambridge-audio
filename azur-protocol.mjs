@@ -10,6 +10,7 @@ export default class AzurProtocol extends events.EventEmitter {
 
         this.seq = 0;
         this.connected = false;
+        this.startupEpoch = 0;
     }
 
     log(msg) {
@@ -23,7 +24,6 @@ export default class AzurProtocol extends events.EventEmitter {
             startuptime: opts.startuptime || 4,
             volume: false,
             speakers: constants.SPEAKER_A,
-            lcdBrightness: 0,
             source: "standby"
         };
         this.initializing = true;
@@ -33,7 +33,21 @@ export default class AzurProtocol extends events.EventEmitter {
             parser: new SerialPort.parsers.Readline("\r")
         });
 
+        let partialCommand = "";
+
         this._port.on('data', data => {
+            data = data.toString();
+
+            partialCommand += data;
+
+            if(!data.includes("\r")) {
+                // we don't have a complete command yet, only a chunk of one
+                return;
+            } else {
+                data = partialCommand;
+                partialCommand = "";
+            }
+
             if(this.initializing) {
                 this.initializing = false;
                 this.connected = true;
@@ -45,7 +59,7 @@ export default class AzurProtocol extends events.EventEmitter {
             let commandGroup = -1;
             let commandBody = [];
             if(data.length >= 3) {
-                commandGroup = data[1];
+                commandGroup = parseInt(data[1]);
                 commandBody = data.substr(3, data.length - 1).split(",");
             }
 
@@ -70,7 +84,11 @@ export default class AzurProtocol extends events.EventEmitter {
                         break;
                         case 11:
                             // power state changed: 0 = standby, 1 = on
-                            const powerState = commandBody[1];
+                            const powerState = parseInt(commandBody[1]);
+
+                            if(powerState === 1) {
+                                this.log(`done, ready! (${Date.now() - this.startupEpoch}ms)`);
+                            }
 
                             this.setSource(powerState === 0 ? "standby" : constants.defaultSource);
                         break;
@@ -101,7 +119,9 @@ export default class AzurProtocol extends events.EventEmitter {
                             // for some reason
                             const lcdBrightness = parseInt(commandBody[1]);
 
-                            this.properties.lcdBrightness = lcdBrightness;
+                            this.startupEpoch = Date.now();
+
+                            this.log("starting up...");
                         break;
                         case 21:
                             const speakers = parseInt(commandBody[1]);
@@ -178,7 +198,8 @@ export default class AzurProtocol extends events.EventEmitter {
 
     setLCDBrightness(val) {
         // 0 - Off, 1 - Dim, 2 - Bright
-        this.send(`#1,20,${val}`);
+        // this.send(`#1,20,${val}`);
+        throw("this doesn't have any effect (tested on 840av2)");
     }
 
     setSource(val) {

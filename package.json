@@ -9,7 +9,6 @@
     "start": "node app.mjs"
   },
   "dependencies": {
-    "node-hue-api": "^4.0.9",
     "node-roon-api": "github:roonlabs/node-roon-api",
     "node-roon-api-settings": "github:roonlabs/node-roon-api-settings",
     "node-roon-api-source-control": "github:roonlabs/node-roon-api-source-control",
