@@ -140,6 +140,9 @@ function setup() {
 }
 
 let convenienceSwitchTimings = [0, 0, 0];
+let convenienceSwitchSpeakers = [constants.SPEAKER_AB, constants.SPEAKER_AB, constants.SPEAKER_AB];
+const badOrdering = [constants.SPEAKER_A, constants.SPEAKER_B, constants.SPEAKER_AB];
+let activateSpeakersTimeout;
 
 function makeConvenienceSwitcher(speaker) {
     return (req) => {
@@ -149,14 +152,25 @@ function makeConvenienceSwitcher(speaker) {
         req.send_complete("Success");
 
         convenienceSwitchTimings.push(Date.now());
+        convenienceSwitchSpeakers.push(speaker);
 
-        setTimeout(() => {
+        activateSpeakersTimeout = setTimeout(() => {
             const last3Timings = convenienceSwitchTimings.slice(Math.max(convenienceSwitchTimings.length - 3, 1));
+            const last3Switches = convenienceSwitchSpeakers.slice(Math.max(convenienceSwitchSpeakers.length - 3, 1));
             const baseline = Math.min(last3Timings[0], last3Timings[1]);
             const delta = Math.max(last3Timings[1], last3Timings[2]) - baseline;
 
-            if(delta < 100) {
+            const thisSwitch = last3Switches[2];
+            const previousSwitch = last3Switches[1];
+
+            const isInBadOrdering = (thisSwitch === constants.SPEAKER_AB && previousSwitch === constants.SPEAKER_B) ||
+                (thisSwitch === constants.SPEAKER_B && previousSwitch === constants.SPEAKER_A) ||
+                (thisSwitch === constants.SPEAKER_A && previousSwitch === constants.SPEAKER_AB);
+
+            if(delta < 100 || isInBadOrdering) {
                 log("not doing anything, since roon is probably sending these before playback.");
+
+                clearTimeout(activateSpeakersTimeout);
             } else {
                 log("looks like a user action, switching sources...");
 
@@ -166,7 +180,7 @@ function makeConvenienceSwitcher(speaker) {
                     azur.control.setSpeaker(speaker);
                 }
             }
-        }, 100);
+        }, 250);
     }
 }
 
