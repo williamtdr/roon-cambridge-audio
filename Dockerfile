@@ -15,9 +15,6 @@ RUN apk add openssh-client
 RUN mkdir ~/.ssh
 RUN ssh-keyscan -Ht ecdsa github.com >> ~/.ssh/known_hosts
 
-# package-lock forces it to only use ssh to clone, for some reason
-RUN rm package-lock.json
-
 # install dependencies
 RUN npm install
 
