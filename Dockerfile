@@ -1,28 +1,13 @@
-FROM node:14-alpine
+FROM node:14
 
 WORKDIR /app
 COPY . .
 
-# assume PST
-RUN apk add --no-cache tzdata
 ENV TZ=America/Los_Angeles
-
-# needed for github dependencies
-RUN apk add git
-RUN apk add openssh-client
 
 # warm cache for github.com in known_hosts
 RUN mkdir ~/.ssh
 RUN ssh-keyscan -Ht ecdsa github.com >> ~/.ssh/known_hosts
-
-# build dependencies
-RUN apk add --no-cache --virtual .gyp \
-        python3 \
-    	py3-pip \
-        make \
-        g++ \
-    && npm install \
-    && apk del .gyp
 
 # install dependencies
 RUN npm install
