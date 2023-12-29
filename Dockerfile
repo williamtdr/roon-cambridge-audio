@@ -15,6 +15,15 @@ RUN apk add openssh-client
 RUN mkdir ~/.ssh
 RUN ssh-keyscan -Ht ecdsa github.com >> ~/.ssh/known_hosts
 
+# build dependencies
+RUN apk add --no-cache --virtual .gyp \
+        python3 \
+    	py3-pip \
+        make \
+        g++ \
+    && npm install \
+    && apk del .gyp
+
 # install dependencies
 RUN npm install
 
