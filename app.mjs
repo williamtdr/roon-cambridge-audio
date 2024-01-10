@@ -21,6 +21,7 @@ let mysettings = roon.load_config("settings") || {
     startuptime: 4
 };
 const azur = {};
+let lastTurnedAmplifierOn = 0;
 
 function log(msg) {
     console.log(`[Extension] ${msg}`);
@@ -175,7 +176,9 @@ function makeConvenienceSwitcher(speaker) {
                 log("looks like a user action, switching sources...");
 
                 if(azur.control.properties.source === "standby") {
+                    log("turning amplifier on!");
                     azur.control.powerOn();
+                    lastTurnedAmplifierOn = Date.now();
                 } else {
                     azur.control.setSpeaker(speaker);
                 }
@@ -186,7 +189,11 @@ function makeConvenienceSwitcher(speaker) {
 
 const onStandby = (req) => {
     azur.control.powerOff();
-    req.send_complete("Success");
+    lastTurnedAmplifierOn = 0;
+
+    if (req) {
+        req.send_complete("Success");
+    }
 };
 
 function onConnected(status) {
@@ -301,6 +308,18 @@ function onSourceChanged(val) {
         onSpeakersChanged();
     }
 }
+
+setInterval(() => {
+    if (lastTurnedAmplifierOn != 0) {
+        let minutesSinceTurnedOn = ((Date.now() - lastTurnedAmplifierOn) / (1000 * 60));
+
+        // turn off automatically after 6h to prevent wasting power
+        if (minutesSinceTurnedOn > (6 * 60)) {
+            console.log("turning off amplifier after 6h of use to save power!");
+            onStandby();
+        }
+    }
+}, 1000);
 
 setup();
 roon.start_discovery();
